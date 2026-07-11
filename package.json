@@ -1,0 +1,34 @@
+{
+  "name": "html-edit-imagine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc && vite build",
+    "harness": "node harness/layout-harness.mjs",
+    "backend": "node src/backend/server.mjs",
+    "export:sample": "node scripts/export-sample.mjs",
+    "smoke:backend": "node scripts/backend-smoke.mjs",
+    "smoke:api": "node scripts/api-smoke.mjs",
+    "smoke:frontend": "node scripts/frontend-smoke.mjs",
+    "demo:walkthrough": "node scripts/demo-walkthrough.mjs",
+    "demo:record": "node scripts/demo-recording.mjs",
+    "demo:source-record": "node scripts/demo-source-layout-recording.mjs",
+    "demo:input-to-layout-record": "node scripts/demo-input-to-layout-recording.mjs",
+    "test": "npm run harness && npm run smoke:backend && npm run smoke:api && npm run export:sample && npm run build && npm run smoke:frontend"
+  },
+  "dependencies": {
+    "lucide-react": "^1.23.0",
+    "playwright": "^1.61.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "typescript": "^6.0.3",
+    "vite": "^8.1.3"
+  }
+}

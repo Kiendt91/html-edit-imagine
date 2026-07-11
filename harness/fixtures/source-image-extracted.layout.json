@@ -1,0 +1,200 @@
+{
+  "version": "0.1.0",
+  "canvas": {
+    "width": 900,
+    "height": 1200,
+    "unit": "px",
+    "background": {
+      "type": "solid",
+      "color": "#f6efe5"
+    }
+  },
+  "assets": [
+    {
+      "id": "asset-source-layout",
+      "type": "image",
+      "kind": "source-layout",
+      "name": "Source Poster",
+      "src": "assets/source-poster.png",
+      "mimeType": "image/png",
+      "width": 900,
+      "height": 1200
+    }
+  ],
+  "objects": [
+    {
+      "id": "source-underlay",
+      "name": "Source Image Underlay",
+      "type": "image",
+      "x": 0,
+      "y": 0,
+      "width": 900,
+      "height": 1200,
+      "rotation": 0,
+      "opacity": 0.22,
+      "zIndex": -100,
+      "locked": true,
+      "visible": true,
+      "role": "source-underlay",
+      "assetId": "asset-source-layout",
+      "fit": "fill",
+      "analysisMeta": {
+        "extractedFromAssetId": "asset-source-layout",
+        "extractionConfidence": 1,
+        "sourceBBox": {
+          "x": 0,
+          "y": 0,
+          "width": 900,
+          "height": 1200
+        }
+      }
+    },
+    {
+      "id": "layout-background",
+      "name": "Extracted Background",
+      "type": "rectangle",
+      "x": 0,
+      "y": 0,
+      "width": 900,
+      "height": 1200,
+      "rotation": 0,
+      "opacity": 1,
+      "zIndex": 0,
+      "locked": false,
+      "visible": true,
+      "role": "background",
+      "fill": {
+        "type": "linear-gradient",
+        "from": "#290806",
+        "to": "#68120e"
+      },
+      "analysisMeta": {
+        "extractedFromAssetId": "asset-source-layout",
+        "extractionConfidence": 0.52,
+        "sourceBBox": {
+          "x": 0,
+          "y": 0,
+          "width": 900,
+          "height": 1200
+        }
+      }
+    },
+    {
+      "id": "headline-top-left",
+      "name": "Headline Left Block",
+      "type": "text",
+      "x": 72,
+      "y": 84,
+      "width": 522,
+      "height": 204,
+      "rotation": -5,
+      "opacity": 1,
+      "zIndex": 40,
+      "locked": false,
+      "visible": true,
+      "role": "headline",
+      "content": "BUNG VI",
+      "fontFamily": "Impact, Arial Black, Arial, sans-serif",
+      "fontSize": 99,
+      "fontWeight": 900,
+      "color": "#f3cc68",
+      "align": "center",
+      "lineHeight": 0.92,
+      "analysisMeta": {
+        "extractedFromAssetId": "asset-source-layout",
+        "extractionConfidence": 0.58,
+        "sourceBBox": {
+          "x": 72,
+          "y": 84,
+          "width": 522,
+          "height": 204
+        },
+        "originalText": "BUNG VI"
+      }
+    },
+    {
+      "id": "product-zone",
+      "name": "Product Layout Area",
+      "type": "rectangle",
+      "x": 279,
+      "y": 324,
+      "width": 333,
+      "height": 660,
+      "rotation": 0,
+      "opacity": 1,
+      "zIndex": 55,
+      "locked": false,
+      "visible": true,
+      "role": "product",
+      "content": "PRODUCT",
+      "subjectLock": true,
+      "promptRole": "primary-product",
+      "fill": {
+        "type": "linear-gradient",
+        "from": "rgba(255, 79, 38, 0.7)",
+        "to": "rgba(255, 188, 86, 0.22)"
+      },
+      "analysisMeta": {
+        "extractedFromAssetId": "asset-source-layout",
+        "extractionConfidence": 0.62,
+        "sourceBBox": {
+          "x": 279,
+          "y": 324,
+          "width": 333,
+          "height": 660
+        }
+      }
+    },
+    {
+      "id": "flame-motion-zone",
+      "name": "Motion Flame Zone",
+      "type": "rectangle",
+      "x": 36,
+      "y": 528,
+      "width": 792,
+      "height": 432,
+      "rotation": -8,
+      "opacity": 0.88,
+      "zIndex": 12,
+      "locked": false,
+      "visible": true,
+      "role": "decoration",
+      "fill": {
+        "type": "radial-gradient",
+        "inner": "rgba(255, 120, 20, 0.82)",
+        "outer": "rgba(255, 190, 48, 0.05)"
+      },
+      "analysisMeta": {
+        "extractedFromAssetId": "asset-source-layout",
+        "extractionConfidence": 0.48,
+        "sourceBBox": {
+          "x": 36,
+          "y": 528,
+          "width": 792,
+          "height": 432
+        }
+      }
+    }
+  ],
+  "guides": [
+    {
+      "axis": "x",
+      "position": 450
+    },
+    {
+      "axis": "y",
+      "position": 600
+    }
+  ],
+  "meta": {
+    "title": "Source Poster Layout",
+    "sourceAssetId": "asset-source-layout",
+    "workflow": "source-image-layout-extraction",
+    "extractor": "mock-vision-layout-v1",
+    "visionProvider": "mock-vision-layout-v1",
+    "extractionConfidence": 0.58,
+    "extractionWarnings": [
+      "This fixture represents the source-image extraction contract."
+    ]
+  }
+}

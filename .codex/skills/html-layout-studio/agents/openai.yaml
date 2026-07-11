@@ -1,0 +1,4 @@
+interface:
+  display_name: "HTML Layout Studio"
+  short_description: "Build and verify AI layout editor workflows"
+  default_prompt: "Use $html-layout-studio to design or validate an HTML-based AI layout editor workflow."

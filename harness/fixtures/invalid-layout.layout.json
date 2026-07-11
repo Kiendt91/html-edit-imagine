@@ -1,0 +1,49 @@
+{
+  "version": "",
+  "canvas": {
+    "width": 0,
+    "height": 1350,
+    "unit": "percent"
+  },
+  "assets": [],
+  "objects": [
+    {
+      "id": "product",
+      "name": "Product",
+      "type": "product-image",
+      "x": 100,
+      "y": 100,
+      "width": -20,
+      "height": 500,
+      "rotation": 0,
+      "opacity": 1.5,
+      "zIndex": 1,
+      "assetId": "missing-product"
+    },
+    {
+      "id": "product",
+      "name": "",
+      "type": "unknown-object",
+      "x": 0,
+      "y": 0,
+      "width": 100,
+      "height": 100,
+      "rotation": 0,
+      "opacity": 1,
+      "zIndex": 2
+    },
+    {
+      "id": "group-1",
+      "name": "Broken Group",
+      "type": "group",
+      "x": 0,
+      "y": 0,
+      "width": 100,
+      "height": 100,
+      "rotation": 0,
+      "opacity": 1,
+      "zIndex": 3,
+      "children": ["group-1", "missing-child"]
+    }
+  ]
+}

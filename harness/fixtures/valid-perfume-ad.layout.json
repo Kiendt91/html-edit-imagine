@@ -1,0 +1,116 @@
+{
+  "version": "0.1.0",
+  "canvas": {
+    "width": 1080,
+    "height": 1350,
+    "unit": "px",
+    "background": {
+      "type": "solid",
+      "color": "#F7F2EA"
+    }
+  },
+  "assets": [
+    {
+      "id": "asset-product",
+      "type": "image",
+      "name": "Perfume Bottle",
+      "src": "assets/perfume-bottle.png"
+    },
+    {
+      "id": "asset-logo",
+      "type": "image",
+      "name": "Brand Logo",
+      "src": "assets/logo.png"
+    }
+  ],
+  "objects": [
+    {
+      "id": "background",
+      "name": "Background",
+      "type": "rectangle",
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 1350,
+      "rotation": 0,
+      "opacity": 1,
+      "zIndex": 0,
+      "role": "background",
+      "fill": {
+        "type": "solid",
+        "color": "#F7F2EA"
+      }
+    },
+    {
+      "id": "logo",
+      "name": "Logo",
+      "type": "logo",
+      "x": 80,
+      "y": 64,
+      "width": 160,
+      "height": 64,
+      "rotation": 0,
+      "opacity": 1,
+      "zIndex": 10,
+      "assetId": "asset-logo",
+      "fit": "contain"
+    },
+    {
+      "id": "headline",
+      "name": "Headline",
+      "type": "text",
+      "x": 110,
+      "y": 160,
+      "width": 860,
+      "height": 150,
+      "rotation": 0,
+      "opacity": 1,
+      "zIndex": 20,
+      "role": "headline",
+      "content": "NEW ELEGANCE",
+      "fontFamily": "Inter",
+      "fontSize": 76,
+      "fontWeight": 700,
+      "color": "#171717",
+      "align": "center"
+    },
+    {
+      "id": "product",
+      "name": "Product",
+      "type": "product-image",
+      "x": 300,
+      "y": 405,
+      "width": 480,
+      "height": 600,
+      "rotation": 0,
+      "opacity": 1,
+      "zIndex": 30,
+      "role": "product",
+      "assetId": "asset-product",
+      "fit": "contain"
+    },
+    {
+      "id": "promo-badge",
+      "name": "Promo Badge",
+      "type": "badge",
+      "x": 720,
+      "y": 945,
+      "width": 230,
+      "height": 98,
+      "rotation": -4,
+      "opacity": 1,
+      "zIndex": 40,
+      "role": "promo-badge",
+      "content": "LIMITED DROP"
+    }
+  ],
+  "guides": [
+    {
+      "axis": "x",
+      "position": 540
+    }
+  ],
+  "meta": {
+    "title": "Perfume Ad Layout"
+  }
+}

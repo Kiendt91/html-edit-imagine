@@ -1,0 +1,24 @@
+{
+  "liveHtmlPreview": {
+    "usesAi": false,
+    "commitOnPointerUp": true
+  },
+  "rasterPreview": {
+    "debounceMs": 500,
+    "target": "reference-thumbnail"
+  },
+  "aiDraftStream": {
+    "enabledByDefault": false,
+    "idleDebounceMs": 2000,
+    "quality": "low",
+    "partialImages": 1,
+    "requiresJobId": true,
+    "requiresDocumentHash": true,
+    "staleResultPolicy": "ignore"
+  },
+  "finalRender": {
+    "requiresUserAction": true,
+    "quality": "high",
+    "saveToHistory": true
+  }
+}

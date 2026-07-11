@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+.env.*
+.backend-server.pid
+.frontend-server.pid
+outputs/dev-logs/
+outputs/renders/
+outputs/generated/
+outputs/test-runs/
+outputs/demo-tests/
+outputs/demo-videos/
+outputs/dev-server/
+data/projects/
+data/assets/
