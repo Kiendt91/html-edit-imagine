@@ -369,6 +369,7 @@ async function handle(req, res) {
         providers: {
           visionLayout: visionLayoutProvider.id,
           imageGeneration: generationQueue.defaultProvider,
+          layoutPatch: layoutPatchProvider.id,
         },
         renderJobs: renderQueue.listJobs().length,
         generationJobs: generationQueue.listJobs().length,
@@ -390,6 +391,13 @@ async function handle(req, res) {
           available: ["mock-local", "openai"],
           openAiReady: Boolean(process.env.OPENAI_API_KEY),
           model: process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-1.5",
+        },
+        layoutPatch: {
+          active: layoutPatchProvider.id,
+          configured: process.env.LAYOUT_PATCH_PROVIDER ?? "mock",
+          available: ["mock", "openai"],
+          openAiReady: Boolean(process.env.OPENAI_API_KEY),
+          model: layoutPatchProvider.model ?? null,
         },
       });
       return;
@@ -458,7 +466,7 @@ async function handle(req, res) {
 
     if (req.method === "POST" && pathname === "/api/layout-patches/from-instruction") {
       const body = await readJson(req);
-      sendJson(res, 200, layoutPatchProvider.planPatch({
+      sendJson(res, 200, await layoutPatchProvider.planPatch({
         document: body.document,
         instruction: body.instruction ?? "",
         selectedObjectIds: Array.isArray(body.selectedObjectIds) ? body.selectedObjectIds : [],

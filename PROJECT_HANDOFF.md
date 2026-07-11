@@ -36,7 +36,7 @@ Do not leave useful project knowledge only in chat. Put it in this repo.
 - Source image workflow: upload source image, create locked underlay, extract editable blocks, review confidence metadata.
 - Export pipeline: HTML render, clean PNG/reference export, clean source-underlay hiding.
 - Render and generation queues with job ids, document hashes, SSE, mock local generation, and OpenAI provider adapters.
-- Patch Assistant MVP: deterministic natural-language instruction -> validated patch ops -> preview/apply UI.
+- Patch Assistant: deterministic mock and OpenAI structured-output natural-language instruction -> validated patch ops -> readable preview -> selective apply UI.
 - Smoke tests cover API, frontend flow, project lifecycle, asset placement, source extraction, export, generation, and patch assistant.
 
 ## Important Files
@@ -47,18 +47,18 @@ Do not leave useful project knowledge only in chat. Put it in this repo.
 - `src/frontend/main.tsx` - current editor shell; still larger than ideal.
 - `src/frontend/editor/` - extracted ProjectBrowser, AssetLibrary, OutputPanel.
 - `src/backend/server.mjs` - backend route surface.
-- `src/backend/layout-patch-provider.mjs` - mock natural-language patch provider.
+- `src/backend/layout-patch-provider.mjs` - mock and OpenAI structured-output natural-language patch providers.
 - `scripts/api-smoke.mjs` and `scripts/frontend-smoke.mjs` - end-to-end smoke coverage.
 
 ## Next Best Work
 
-1. Add OpenAI structured-output provider behind the existing patch assistant endpoint.
-2. Improve patch preview UX with readable per-op labels and selective apply/reject.
-3. Add project render/generation history summary and persist it with saved projects.
-4. Extract remaining editor state/helpers from `main.tsx`, especially history and output/render state.
-5. Add geometry controls: rotate handle, pan tool, duplicate object, align/distribute, smart guides.
-6. Add debounced raster preview and AI Draft Stream with stale-result guards.
-7. Improve source-image extraction review: low-confidence sorting, manual trace helper, product crop/fit controls.
+1. Add provider/mode controls and readiness feedback for mock vs OpenAI providers in the UI.
+2. Add project render/generation history summary and persist it with saved projects.
+3. Extract remaining editor state/helpers from `main.tsx`, especially history and output/render state.
+4. Add geometry controls: rotate handle, pan tool, duplicate object, align/distribute, smart guides.
+5. Add debounced raster preview and AI Draft Stream with stale-result guards.
+6. Improve source-image extraction review: low-confidence sorting, manual trace helper, product crop/fit controls.
+7. Expand Patch Assistant command coverage and add richer multi-op review behavior.
 
 ## Validation Notes
 
@@ -80,6 +80,14 @@ This runs:
 If only docs changed, a full test is optional, but record what was or was not run in the session update.
 
 ## Latest Session Update
+
+2026-07-11:
+
+- Added OpenAI structured-output provider for `/api/layout-patches/from-instruction`, configurable with `LAYOUT_PATCH_PROVIDER=openai` and `OPENAI_PATCH_MODEL`.
+- Added backend `opSummaries` for readable patch previews and exposed layout patch provider status through `/api/providers` and `/api/health`.
+- Replaced raw JSON patch preview in the frontend with a readable checklist and selective apply flow.
+- Updated API/frontend smoke coverage and project docs for the provider and preview workflow.
+- Validation for this implementation session: `npm test` passed.
 
 2026-07-11:
 

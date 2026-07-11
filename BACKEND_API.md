@@ -5,7 +5,7 @@ Backend local: `http://localhost:4317`
 ## Core Endpoints
 
 - `GET /api/health` - service status.
-- `GET /api/providers` - active/available vision and image-generation providers.
+- `GET /api/providers` - active/available vision, layout-patch, and image-generation providers.
 - `GET /api/sample` - sample `LayoutDocument` and prompt.
 - `POST /api/validate` - validate `{ document }`.
 - `POST /api/plan-layout` - create a deterministic layout from `{ idea, canvas?, style? }`.
@@ -40,6 +40,7 @@ Use `wait: true` for smoke tests and one-shot API calls. Use the events endpoint
 Defaults are local and deterministic:
 
 - `VISION_LAYOUT_PROVIDER=mock`
+- `LAYOUT_PATCH_PROVIDER=mock`
 - `IMAGE_GENERATION_PROVIDER=mock-local`
 
 OpenAI-backed providers are available when configured:
@@ -48,11 +49,13 @@ OpenAI-backed providers are available when configured:
 $env:OPENAI_API_KEY="..."
 $env:VISION_LAYOUT_PROVIDER="openai"
 $env:OPENAI_VISION_MODEL="gpt-5.5"
+$env:LAYOUT_PATCH_PROVIDER="openai"
+$env:OPENAI_PATCH_MODEL="gpt-5.5"
 $env:IMAGE_GENERATION_PROVIDER="openai"
 $env:OPENAI_IMAGE_MODEL="gpt-image-1.5"
 ```
 
-`POST /api/image-layout/analyze` uses the configured vision provider. `POST /api/generate-image` uses `IMAGE_GENERATION_PROVIDER` unless the request body supplies a `provider`.
+`POST /api/image-layout/analyze` uses the configured vision provider. `POST /api/layout-patches/from-instruction` uses the configured layout patch provider. `POST /api/generate-image` uses `IMAGE_GENERATION_PROVIDER` unless the request body supplies a `provider`.
 
 ## Image Input Endpoints
 
@@ -159,15 +162,40 @@ Response:
 
 ```json
 {
-  "provider": "mock-layout-patch-v1",
-  "ops": [],
+  "provider": "openai-layout-patch",
+  "model": "gpt-5.5",
+  "ops": [
+    {
+      "type": "updateObject",
+      "id": "product",
+      "patch": {
+        "y": 420
+      }
+    }
+  ],
   "document": {},
+  "opSummaries": [
+    {
+      "index": 0,
+      "type": "updateObject",
+      "objectId": "product",
+      "objectName": "Product",
+      "label": "Update Product",
+      "details": [
+        {
+          "key": "y",
+          "from": "480",
+          "to": "420"
+        }
+      ]
+    }
+  ],
   "warnings": [],
   "confidence": 0.74
 }
 ```
 
-The endpoint currently uses a deterministic mock provider and validates the generated patch through the layout command pipeline before returning it.
+The endpoint defaults to the deterministic mock provider. Set `LAYOUT_PATCH_PROVIDER=openai` and `OPENAI_API_KEY` to use the OpenAI structured-output provider. Both providers validate generated patch ops through the layout command pipeline before returning them, and both return `opSummaries` for readable UI review.
 
 ## Scripts
 

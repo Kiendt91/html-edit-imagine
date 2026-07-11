@@ -1,5 +1,105 @@
 import { applyLayoutPatch } from "./layout-commands.mjs";
 import { normalizeLayoutDocument } from "./layout-normalizer.mjs";
+import { openAiJson, responseJson } from "./openai-client.mjs";
+
+const lockedSafePatchKeys = new Set(["locked", "visible", "opacity", "name"]);
+
+const nullableString = { type: ["string", "null"] };
+const nullableNumber = { type: ["number", "null"] };
+const nullableBoolean = { type: ["boolean", "null"] };
+
+const patchPayloadProperties = {
+  name: nullableString,
+  x: nullableNumber,
+  y: nullableNumber,
+  width: nullableNumber,
+  height: nullableNumber,
+  rotation: nullableNumber,
+  opacity: nullableNumber,
+  zIndex: nullableNumber,
+  locked: nullableBoolean,
+  visible: nullableBoolean,
+  role: nullableString,
+  content: nullableString,
+  fontFamily: nullableString,
+  fontSize: nullableNumber,
+  fontWeight: nullableNumber,
+  color: nullableString,
+  align: nullableString,
+  lineHeight: nullableNumber,
+  assetId: nullableString,
+  fit: nullableString,
+  subjectLock: nullableBoolean,
+  promptRole: nullableString,
+  fillColor: nullableString,
+};
+
+const objectPayloadProperties = {
+  id: nullableString,
+  type: nullableString,
+  ...patchPayloadProperties,
+};
+
+const patchPayloadSchema = {
+  type: ["object", "null"],
+  additionalProperties: false,
+  required: Object.keys(patchPayloadProperties),
+  properties: patchPayloadProperties,
+};
+
+const objectPayloadSchema = {
+  type: ["object", "null"],
+  additionalProperties: false,
+  required: Object.keys(objectPayloadProperties),
+  properties: objectPayloadProperties,
+};
+
+const canvasPayloadSchema = {
+  type: ["object", "null"],
+  additionalProperties: false,
+  required: ["width", "height", "backgroundColor"],
+  properties: {
+    width: nullableNumber,
+    height: nullableNumber,
+    backgroundColor: nullableString,
+  },
+};
+
+const openAiPatchPlanSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["ops", "warnings", "confidence"],
+  properties: {
+    ops: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["type", "id", "patch", "object", "zIndex", "canvas"],
+        properties: {
+          type: {
+            type: "string",
+            enum: ["updateObject", "addObject", "removeObject", "reorderObject", "setCanvas"],
+          },
+          id: nullableString,
+          patch: patchPayloadSchema,
+          object: objectPayloadSchema,
+          zIndex: nullableNumber,
+          canvas: canvasPayloadSchema,
+        },
+      },
+    },
+    warnings: {
+      type: "array",
+      items: { type: "string" },
+    },
+    confidence: {
+      type: "number",
+      minimum: 0,
+      maximum: 1,
+    },
+  },
+};
 
 function normalizeText(value) {
   return String(value ?? "")
@@ -16,6 +116,59 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+function isFiniteNumber(value) {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function isNonEmptyString(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function compactObject(value) {
+  const result = {};
+  if (!value || typeof value !== "object" || Array.isArray(value)) return result;
+  for (const [key, item] of Object.entries(value)) {
+    if (item !== null && item !== undefined && item !== "") {
+      result[key] = item;
+    }
+  }
+  return result;
+}
+
+function fillFromColor(value) {
+  if (!isNonEmptyString(value)) return undefined;
+  return { type: "solid", color: value.trim() };
+}
+
+function compactPatchPayload(payload) {
+  const patch = compactObject(payload);
+  if (patch.fillColor) {
+    patch.fill = fillFromColor(patch.fillColor);
+    delete patch.fillColor;
+  }
+  if (patch.align && !["left", "center", "right"].includes(patch.align)) {
+    delete patch.align;
+  }
+  if (patch.fit && !["contain", "cover", "fill"].includes(patch.fit)) {
+    delete patch.fit;
+  }
+  if (patch.promptRole && patch.promptRole !== "primary-product") {
+    delete patch.promptRole;
+  }
+  return patch;
+}
+
+function compactCanvasPayload(payload) {
+  const canvas = {};
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return canvas;
+  if (isFiniteNumber(payload.width)) canvas.width = Math.round(payload.width);
+  if (isFiniteNumber(payload.height)) canvas.height = Math.round(payload.height);
+  if (isNonEmptyString(payload.backgroundColor)) {
+    canvas.background = { type: "solid", color: payload.backgroundColor.trim() };
+  }
+  return canvas;
+}
+
 function uniqueObjectId(document, base) {
   const root = String(base).replace(/[^a-z0-9-]/gi, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase() || "object";
   const usedIds = new Set(document.objects.map((object) => object.id));
@@ -23,6 +176,210 @@ function uniqueObjectId(document, base) {
   let index = 2;
   while (usedIds.has(`${root}-${index}`)) index += 1;
   return `${root}-${index}`;
+}
+
+function compactDocumentForPrompt(document) {
+  return {
+    canvas: document.canvas,
+    objects: document.objects.map((object) => ({
+      id: object.id,
+      name: object.name,
+      type: object.type,
+      role: object.role ?? null,
+      promptRole: object.promptRole ?? null,
+      locked: object.locked === true,
+      visible: object.visible !== false,
+      x: object.x,
+      y: object.y,
+      width: object.width,
+      height: object.height,
+      rotation: object.rotation,
+      opacity: object.opacity,
+      zIndex: object.zIndex,
+      content: object.content ?? null,
+      fontSize: object.fontSize ?? null,
+      color: object.color ?? null,
+      align: object.align ?? null,
+      assetId: object.assetId ?? null,
+    })),
+  };
+}
+
+function normalizeAddedObject(document, payload) {
+  const object = compactPatchPayload(payload);
+  const idBase = object.id ?? object.name ?? object.role ?? object.type ?? "assistant-object";
+  const x = isFiniteNumber(object.x) ? object.x : document.canvas.width * 0.24;
+  const y = isFiniteNumber(object.y) ? object.y : document.canvas.height * 0.24;
+  const width = isFiniteNumber(object.width) ? object.width : document.canvas.width * 0.28;
+  const height = isFiniteNumber(object.height) ? object.height : document.canvas.height * 0.1;
+
+  return {
+    ...object,
+    id: uniqueObjectId(document, idBase),
+    name: isNonEmptyString(object.name) ? object.name : "Assistant Object",
+    type: isNonEmptyString(object.type) ? object.type : "rectangle",
+    x: clamp(Math.round(x), 0, Math.max(0, document.canvas.width - 1)),
+    y: clamp(Math.round(y), 0, Math.max(0, document.canvas.height - 1)),
+    width: clamp(Math.round(width), 24, document.canvas.width),
+    height: clamp(Math.round(height), 24, document.canvas.height),
+    rotation: isFiniteNumber(object.rotation) ? object.rotation : 0,
+    opacity: isFiniteNumber(object.opacity) ? clamp(object.opacity, 0, 1) : 1,
+    zIndex: isFiniteNumber(object.zIndex) ? object.zIndex : Math.max(0, ...document.objects.map((item) => item.zIndex)) + 10,
+    visible: object.visible === false ? false : true,
+  };
+}
+
+function normalizeOpenAiOps(document, rawOps = []) {
+  const warnings = [];
+  const ops = [];
+  const byId = new Map(document.objects.map((object) => [object.id, object]));
+
+  for (const rawOp of Array.isArray(rawOps) ? rawOps : []) {
+    if (!rawOp || typeof rawOp !== "object") continue;
+
+    if (rawOp.type === "addObject") {
+      ops.push({ type: "addObject", object: normalizeAddedObject(document, rawOp.object) });
+      continue;
+    }
+
+    if (rawOp.type === "setCanvas") {
+      const canvas = compactCanvasPayload(rawOp.canvas);
+      if (Object.keys(canvas).length > 0) {
+        ops.push({ type: "setCanvas", canvas });
+      } else {
+        warnings.push("Skipped an empty canvas update.");
+      }
+      continue;
+    }
+
+    if (!isNonEmptyString(rawOp.id) || !byId.has(rawOp.id)) {
+      warnings.push(`Skipped ${rawOp.type ?? "operation"} with an unknown object id.`);
+      continue;
+    }
+
+    const target = byId.get(rawOp.id);
+    if (rawOp.type === "updateObject") {
+      const patch = compactPatchPayload(rawOp.patch);
+      const patchEntries = Object.entries(patch);
+      if (target.locked) {
+        const safePatch = Object.fromEntries(patchEntries.filter(([key]) => lockedSafePatchKeys.has(key)));
+        if (Object.keys(safePatch).length !== patchEntries.length) {
+          warnings.push(`Skipped unsafe edits for locked object "${target.name}".`);
+        }
+        if (Object.keys(safePatch).length > 0) {
+          ops.push({ type: "updateObject", id: rawOp.id, patch: safePatch });
+        }
+      } else if (patchEntries.length > 0) {
+        ops.push({ type: "updateObject", id: rawOp.id, patch });
+      } else {
+        warnings.push(`Skipped empty update for "${target.name}".`);
+      }
+      continue;
+    }
+
+    if (target.locked) {
+      warnings.push(`Skipped ${rawOp.type} for locked object "${target.name}".`);
+      continue;
+    }
+
+    if (rawOp.type === "removeObject") {
+      ops.push({ type: "removeObject", id: rawOp.id });
+    } else if (rawOp.type === "reorderObject" && isFiniteNumber(rawOp.zIndex)) {
+      ops.push({ type: "reorderObject", id: rawOp.id, zIndex: rawOp.zIndex });
+    } else {
+      warnings.push(`Skipped unsupported or incomplete operation for "${target.name}".`);
+    }
+  }
+
+  return { ops, warnings };
+}
+
+function formatSummaryValue(value) {
+  if (value === undefined) return "unset";
+  if (value === null) return "null";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
+function objectName(document, id) {
+  return document.objects.find((object) => object.id === id)?.name ?? id ?? "Layout";
+}
+
+export function summarizeOps(document, ops) {
+  const normalized = normalizeLayoutDocument(document);
+  return ops.map((op, index) => {
+    if (op.type === "updateObject") {
+      const object = normalized.objects.find((item) => item.id === op.id);
+      return {
+        index,
+        type: op.type,
+        objectId: op.id,
+        objectName: objectName(normalized, op.id),
+        label: `Update ${objectName(normalized, op.id)}`,
+        details: Object.entries(op.patch ?? {}).map(([key, value]) => ({
+          key,
+          from: formatSummaryValue(object?.[key]),
+          to: formatSummaryValue(value),
+        })),
+      };
+    }
+    if (op.type === "addObject") {
+      return {
+        index,
+        type: op.type,
+        objectId: op.object?.id ?? null,
+        objectName: op.object?.name ?? op.object?.id ?? "New object",
+        label: `Add ${op.object?.name ?? op.object?.id ?? "new object"}`,
+        details: [
+          { key: "type", from: "none", to: formatSummaryValue(op.object?.type) },
+          { key: "position", from: "none", to: `${op.object?.x ?? "?"}, ${op.object?.y ?? "?"}` },
+        ],
+      };
+    }
+    if (op.type === "removeObject") {
+      return {
+        index,
+        type: op.type,
+        objectId: op.id,
+        objectName: objectName(normalized, op.id),
+        label: `Remove ${objectName(normalized, op.id)}`,
+        details: [],
+      };
+    }
+    if (op.type === "reorderObject") {
+      const object = normalized.objects.find((item) => item.id === op.id);
+      return {
+        index,
+        type: op.type,
+        objectId: op.id,
+        objectName: objectName(normalized, op.id),
+        label: `Reorder ${objectName(normalized, op.id)}`,
+        details: [{ key: "zIndex", from: formatSummaryValue(object?.zIndex), to: formatSummaryValue(op.zIndex) }],
+      };
+    }
+    if (op.type === "setCanvas") {
+      return {
+        index,
+        type: op.type,
+        objectId: null,
+        objectName: "Canvas",
+        label: "Update canvas",
+        details: Object.entries(op.canvas ?? {}).map(([key, value]) => ({
+          key,
+          from: formatSummaryValue(normalized.canvas[key]),
+          to: formatSummaryValue(value),
+        })),
+      };
+    }
+    return {
+      index,
+      type: op.type,
+      objectId: op.asset?.id ?? null,
+      objectName: op.asset?.name ?? op.type,
+      label: `Apply ${op.type}`,
+      details: [],
+    };
+  });
 }
 
 function semanticTargets(document, text, selectedObjectIds = []) {
@@ -177,12 +534,96 @@ export class MockLayoutPatchProvider {
       instruction,
       ops: preview.appliedOps,
       document: preview.document,
+      opSummaries: summarizeOps(normalized, preview.appliedOps),
       warnings,
       confidence: ops.length > 0 ? 0.74 : 0.25,
     };
   }
 }
 
-export function createLayoutPatchProvider() {
+export class OpenAILayoutPatchProvider {
+  constructor({ model = process.env.OPENAI_PATCH_MODEL ?? process.env.OPENAI_VISION_MODEL ?? "gpt-5.5" } = {}) {
+    this.id = "openai-layout-patch";
+    this.model = model;
+  }
+
+  async planPatch({ document, instruction, selectedObjectIds = [] }) {
+    const normalized = normalizeLayoutDocument(document);
+    const response = await openAiJson("/responses", {
+      model: this.model,
+      input: [
+        {
+          role: "system",
+          content: [
+            "You plan safe edits for a DOM-first image layout editor.",
+            "Return only structured patch operations, never HTML or CSS.",
+            "Use absolute pixel values in the LayoutDocument coordinate system.",
+            "Use existing object ids for updateObject, removeObject, and reorderObject.",
+            "Prefer selectedObjectIds when the instruction is ambiguous.",
+            "Do not edit locked objects except name, visible, opacity, or locked.",
+            "Keep changes small and directly tied to the user's instruction.",
+          ].join(" "),
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: JSON.stringify({
+                instruction,
+                selectedObjectIds,
+                layout: compactDocumentForPrompt(normalized),
+              }),
+            },
+          ],
+        },
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "layout_patch_plan",
+          strict: true,
+          schema: openAiPatchPlanSchema,
+        },
+      },
+    });
+
+    const plan = responseJson(response);
+    const normalizedPlan = normalizeOpenAiOps(normalized, plan.ops);
+    const warnings = [
+      ...(Array.isArray(plan.warnings) ? plan.warnings : []),
+      ...normalizedPlan.warnings,
+    ];
+    if (normalizedPlan.ops.length === 0) {
+      warnings.push("OpenAI patch provider did not return an actionable layout edit.");
+    }
+
+    const preview = applyLayoutPatch(normalized, normalizedPlan.ops);
+    return {
+      provider: this.id,
+      model: this.model,
+      instruction,
+      ops: preview.appliedOps,
+      document: preview.document,
+      opSummaries: summarizeOps(normalized, preview.appliedOps),
+      warnings,
+      confidence: isFiniteNumber(plan.confidence) ? clamp(plan.confidence, 0, 1) : 0.5,
+    };
+  }
+}
+
+export function createMockLayoutPatchProvider() {
   return new MockLayoutPatchProvider();
+}
+
+export function createLayoutPatchProvider({ provider = process.env.LAYOUT_PATCH_PROVIDER ?? "mock" } = {}) {
+  if (provider === "openai") {
+    return new OpenAILayoutPatchProvider();
+  }
+  if (provider === "mock" || provider === "mock-local") {
+    return new MockLayoutPatchProvider();
+  }
+  const error = new Error(`Unsupported layout patch provider "${provider}"`);
+  error.statusCode = 400;
+  throw error;
 }

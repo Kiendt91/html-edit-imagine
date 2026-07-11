@@ -116,8 +116,9 @@ try {
   await page.locator(".patchActions").getByRole("button", { name: /^Preview$/ }).click();
   await page.getByText(/Patch preview ready/i).waitFor({ timeout: 15000 });
   await page.locator(".patchPreview").waitFor({ timeout: 15000 });
-  await page.locator(".patchActions").getByRole("button", { name: /^Apply$/ }).click();
-  await page.getByText("Instruction patch applied.").waitFor({ timeout: 15000 });
+  await page.locator(".patchSummaryItem").first().waitFor({ timeout: 15000 });
+  await page.locator(".patchActions").getByRole("button", { name: /^Apply/ }).click();
+  await page.getByText(/Instruction patch applied/i).waitFor({ timeout: 15000 });
 
   await page.locator(".assetUploadBox input[type=file]").setInputFiles(productPath);
   await page.locator(".assetImage").first().waitFor({ timeout: 15000 });

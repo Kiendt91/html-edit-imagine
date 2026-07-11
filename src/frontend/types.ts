@@ -95,6 +95,19 @@ export type PatchOperation =
   | { type: "setCanvas"; canvas: Partial<CanvasSpec> }
   | { type: "replaceAsset"; asset: AssetRef };
 
+export type PatchOperationSummary = {
+  index: number;
+  type: string;
+  objectId: string | null;
+  objectName: string;
+  label: string;
+  details: Array<{
+    key: string;
+    from: string;
+    to: string;
+  }>;
+};
+
 export type RenderJob = {
   jobId: string;
   tier: string;

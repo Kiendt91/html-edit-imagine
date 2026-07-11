@@ -29,7 +29,7 @@ import { AssetLibrary } from "./editor/AssetLibrary";
 import { OutputPanel } from "./editor/OutputPanel";
 import { ProjectBrowser } from "./editor/ProjectBrowser";
 import { fillToCss, objectStyle, ProductPlaceholder } from "./layoutRender";
-import type { AssetRef, GenerationJob, LayoutDocument, LayoutObject, PatchOperation, RenderJob } from "./types";
+import type { AssetRef, GenerationJob, LayoutDocument, LayoutObject, PatchOperation, PatchOperationSummary, RenderJob } from "./types";
 import "./styles.css";
 
 type DragState =
@@ -45,9 +45,11 @@ type DragState =
 
 type LayoutPatchPlan = {
   provider: string;
+  model?: string;
   instruction: string;
   ops: PatchOperation[];
   document: LayoutDocument;
+  opSummaries: PatchOperationSummary[];
   warnings: string[];
   confidence: number;
 };
@@ -71,6 +73,48 @@ function objectIcon(type: string) {
   if (type.includes("image") || type === "logo" || type === "icon") return <ImageIcon size={15} />;
   if (type === "badge") return <BadgePlus size={15} />;
   return <Box size={15} />;
+}
+
+function fallbackPatchSummary(op: PatchOperation, index: number): PatchOperationSummary {
+  if (op.type === "updateObject") {
+    return {
+      index,
+      type: op.type,
+      objectId: op.id,
+      objectName: op.id,
+      label: `Update ${op.id}`,
+      details: Object.entries(op.patch).map(([key, value]) => ({ key, from: "current", to: String(value) })),
+    };
+  }
+  if (op.type === "addObject") {
+    return {
+      index,
+      type: op.type,
+      objectId: op.object.id ?? null,
+      objectName: op.object.name ?? op.object.id ?? "New object",
+      label: `Add ${op.object.name ?? op.object.id ?? "new object"}`,
+      details: [],
+    };
+  }
+  if (op.type === "setCanvas") {
+    return {
+      index,
+      type: op.type,
+      objectId: null,
+      objectName: "Canvas",
+      label: "Update canvas",
+      details: Object.entries(op.canvas).map(([key, value]) => ({ key, from: "current", to: String(value) })),
+    };
+  }
+  const objectId = "id" in op ? op.id : op.asset.id;
+  return {
+    index,
+    type: op.type,
+    objectId,
+    objectName: objectId,
+    label: `${op.type} ${objectId}`,
+    details: [],
+  };
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -109,6 +153,7 @@ function App() {
   const [gridSize, setGridSize] = useState(20);
   const [patchInstruction, setPatchInstruction] = useState("Move the product up and make the headline bigger");
   const [patchPlan, setPatchPlan] = useState<LayoutPatchPlan | null>(null);
+  const [selectedPatchIndexes, setSelectedPatchIndexes] = useState<number[]>([]);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const selected = selectedObject(document, selectedId);
 
@@ -147,7 +192,7 @@ function App() {
   useEffect(() => {
     getProviders()
       .then((providers) => {
-        setProviderSummary(`Vision: ${providers.visionLayout.active}. Generation: ${providers.imageGeneration.activeDefault}.`);
+        setProviderSummary(`Vision: ${providers.visionLayout.active}. Patch: ${providers.layoutPatch.active}. Generation: ${providers.imageGeneration.activeDefault}.`);
       })
       .catch(() => setProviderSummary("Providers unavailable."));
     getSample()
@@ -168,6 +213,7 @@ function App() {
       const snapshot = historySnapshot ?? document;
       rememberDocument(snapshot);
       setPatchPlan(null);
+      setSelectedPatchIndexes([]);
       if (optimisticDocument) {
         setDocument(optimisticDocument);
       }
@@ -658,6 +704,13 @@ function App() {
     }
   };
 
+  const togglePatchSelection = useCallback((index: number) => {
+    setSelectedPatchIndexes((current) => {
+      if (current.includes(index)) return current.filter((item) => item !== index);
+      return [...current, index].sort((a, b) => a - b);
+    });
+  }, []);
+
   const previewInstructionPatch = async () => {
     if (!document || patchInstruction.trim().length === 0) return;
     setStatus("Planning layout patch...");
@@ -668,6 +721,7 @@ function App() {
         selectedObjectIds: selectedId ? [selectedId] : [],
       });
       setPatchPlan(plan);
+      setSelectedPatchIndexes(plan.ops.map((_, index) => index));
       setStatus(`Patch preview ready: ${plan.ops.length} ops from ${plan.provider}.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Patch assistant failed.");
@@ -676,16 +730,25 @@ function App() {
 
   const applyInstructionPatch = async () => {
     if (!document || !patchPlan || patchPlan.ops.length === 0) return;
+    const selectedOps = patchPlan.ops.filter((_, index) => selectedPatchIndexes.includes(index));
+    if (selectedOps.length === 0) {
+      setStatus("Choose at least one patch operation to apply.");
+      return;
+    }
     const snapshot = document;
+    const useFullPreview = selectedOps.length === patchPlan.ops.length;
     rememberDocument(snapshot);
-    setDocument(patchPlan.document);
+    if (useFullPreview) {
+      setDocument(patchPlan.document);
+    }
     setPatchPlan(null);
+    setSelectedPatchIndexes([]);
     resetOutputs();
     try {
-      const patched = await patchLayout(snapshot, patchPlan.ops);
+      const patched = await patchLayout(snapshot, selectedOps);
       setDocument(patched.document);
       setSelectedId((id) => patched.document.objects.find((object) => object.id === id)?.id ?? patched.document.objects[0]?.id ?? null);
-      setStatus("Instruction patch applied.");
+      setStatus(`Instruction patch applied: ${selectedOps.length} ops.`);
     } catch (error) {
       setDocument(snapshot);
       setStatus(error instanceof Error ? error.message : "Apply patch failed.");
@@ -693,6 +756,8 @@ function App() {
   };
 
   const layers = useMemo(() => (document ? sortLayers(document) : []), [document]);
+  const selectedPatchCount = patchPlan ? patchPlan.ops.filter((_, index) => selectedPatchIndexes.includes(index)).length : 0;
+  const patchSummaries = patchPlan?.opSummaries?.length ? patchPlan.opSummaries : patchPlan?.ops.map(fallbackPatchSummary) ?? [];
 
   if (!document) {
     return <div className="loadingScreen">{status}</div>;
@@ -764,8 +829,8 @@ function App() {
             <textarea value={patchInstruction} onChange={(event) => setPatchInstruction(event.target.value)} placeholder="Move the product up and make the headline bigger" />
             <div className="patchActions">
               <button onClick={() => void previewInstructionPatch()}>Preview</button>
-              <button onClick={() => void applyInstructionPatch()} disabled={!patchPlan || patchPlan.ops.length === 0}>
-                Apply
+              <button onClick={() => void applyInstructionPatch()} disabled={!patchPlan || patchPlan.ops.length === 0 || selectedPatchCount === 0}>
+                Apply {patchPlan && patchPlan.ops.length > 0 ? selectedPatchCount : ""}
               </button>
             </div>
             {patchPlan && (
@@ -779,7 +844,28 @@ function App() {
                   <strong>{patchPlan.ops.length}</strong>
                 </div>
                 {patchPlan.warnings.length > 0 && <p>{patchPlan.warnings.join(" ")}</p>}
-                <code>{JSON.stringify(patchPlan.ops)}</code>
+                <ol className="patchSummaryList">
+                  {patchSummaries.map((summary) => {
+                    const checked = selectedPatchIndexes.includes(summary.index);
+                    const details = summary.details.map((detail) => `${detail.key}: ${detail.from} -> ${detail.to}`).join("; ");
+                    return (
+                      <li key={summary.index} className={checked ? "patchSummaryItem" : "patchSummaryItem skipped"}>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => togglePatchSelection(summary.index)}
+                            aria-label={`Apply patch operation ${summary.index + 1}`}
+                          />
+                          <span>
+                            <strong>{summary.label}</strong>
+                            {details && <em>{details}</em>}
+                          </span>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ol>
               </div>
             )}
           </div>

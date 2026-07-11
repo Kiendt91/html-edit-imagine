@@ -73,11 +73,14 @@ try {
   assert.equal(health.ok, true);
   assert.equal(health.providers.visionLayout, "mock-vision-layout-v1");
   assert.equal(health.providers.imageGeneration, "mock-local");
+  assert.equal(health.providers.layoutPatch, "mock-layout-patch-v1");
 
   const providers = await fetch(`${baseUrl}/api/providers`).then((response) => response.json());
   assert.equal(providers.visionLayout.active, "mock-vision-layout-v1");
   assert.ok(providers.visionLayout.available.includes("openai"));
   assert.equal(providers.imageGeneration.activeDefault, "mock-local");
+  assert.equal(providers.layoutPatch.active, "mock-layout-patch-v1");
+  assert.ok(providers.layoutPatch.available.includes("openai"));
   assert.ok(providers.imageGeneration.available.includes("openai"));
 
   const planned = await postJson(baseUrl, "/api/plan-layout", {
@@ -140,6 +143,7 @@ try {
   });
   assert.equal(instructionPatch.provider, "mock-layout-patch-v1");
   assert.ok(instructionPatch.ops.some((op) => op.type === "updateObject" && op.id === "product"), "instruction patch should update the selected product");
+  assert.ok(instructionPatch.opSummaries.some((summary) => summary.objectId === "product" && summary.details.some((detail) => detail.key === "y")), "instruction patch should include readable product movement summary");
   assert.ok(instructionPatch.confidence > 0.5);
   assert.ok(
     instructionPatch.document.objects.find((object) => object.id === "product").y < productBeforePatch.y,

@@ -1,8 +1,8 @@
 # AI Layout Studio System Profile v2
 
-Updated: 2026-07-07
+Updated: 2026-07-11
 
-Implementation note: Batch A and the first mock version of Batch C were started after this profile was written. The current app now includes overwrite save, duplicate project, extracted ProjectBrowser/AssetLibrary/OutputPanel components, and a deterministic natural-language patch assistant endpoint/UI. Remaining work in these batches is provider-backed patching, deeper patch review UX, project render/generation history, and more state extraction.
+Implementation note: Batch A and Batch C are now partially implemented. The current app includes overwrite save, duplicate project, extracted ProjectBrowser/AssetLibrary/OutputPanel components, a deterministic natural-language patch assistant, an OpenAI structured-output layout patch provider, and readable/selective patch preview UI. Remaining work in these batches is provider/mode controls, broader command coverage, project render/generation history, and more state extraction.
 
 Purpose: this is the coding profile for the next implementation sessions. It turns the original product vision, the current repo state, and the latest gap analysis into a concrete system contract.
 
@@ -33,7 +33,7 @@ The user should spend most of their time in the editable layout stage. AI propos
 
 ## 3. Current Verified Implementation
 
-This inventory is based on the current worktree as of 2026-07-07.
+This inventory is based on the current worktree as of 2026-07-11.
 
 ### Frontend
 
@@ -46,7 +46,7 @@ This inventory is based on the current worktree as of 2026-07-07.
 - Project Browser for save/load/delete.
 - Project overwrite save and duplicate project.
 - Asset Library for listing, reusing, and deleting unused uploaded assets.
-- Mock natural-language Patch Assistant for previewing and applying validated patch ops.
+- Natural-language Patch Assistant for previewing and selectively applying validated patch ops.
 - Source image import and extract layout workflow.
 - Export PNG, render queue, and generate image controls.
 
@@ -56,7 +56,7 @@ This inventory is based on the current worktree as of 2026-07-07.
 - Project store with list/get/save/patch/delete.
 - Asset store with upload/list/static serving/delete.
 - Layout planner, validator, normalizer, and patch commands.
-- Natural-language layout patch endpoint with deterministic mock output.
+- Natural-language layout patch endpoint with deterministic mock and OpenAI structured-output providers.
 - HTML renderer and Playwright export pipeline.
 - Render queue with job ids, document hashes, cache, and SSE.
 - Generation queue with mock-local and OpenAI image provider adapter.
@@ -83,8 +83,8 @@ This inventory is based on the current worktree as of 2026-07-07.
    - Need stronger vision extraction, OCR review, confidence sorting, region editing, and manual correction flow.
 
 3. Natural-language layout patching
-   - Mock patch assistant exists for commands like "move product up".
-   - Need OpenAI structured-output provider, stronger preview/review UX, and broader command coverage.
+   - Mock and OpenAI structured-output patch providers exist for commands like "move product up".
+   - Need provider controls, broader command coverage, and deeper review behavior for complex multi-op edits.
 
 4. Render stream tiers
    - Live HTML exists.
@@ -361,16 +361,16 @@ Tasks:
 
 - Add `LayoutPatchProvider` interface.
 - Add mock patch provider. Done in current implementation.
-- Add OpenAI structured-output patch provider.
+- Add OpenAI structured-output patch provider. Done in current implementation.
 - Add `/api/layout-patches/from-instruction`. Done in current implementation.
-- Add frontend instruction box with patch preview/apply. Done in current implementation.
+- Add frontend instruction box with readable patch preview and selective apply. Done in current implementation.
 
 Acceptance:
 
 - AI never returns arbitrary HTML.
 - Invalid ops are rejected by validator/normalizer.
-- User can inspect ops before applying.
-- API smoke covers mock patch.
+- User can inspect and select ops before applying.
+- API/frontend smoke covers mock patch and readable preview.
 
 ### Batch D: Image Extraction Upgrade
 

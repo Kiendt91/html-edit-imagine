@@ -1,4 +1,4 @@
-import type { AssetRef, GenerationJob, LayoutDocument, PatchOperation, RenderJob } from "./types";
+import type { AssetRef, GenerationJob, LayoutDocument, PatchOperation, PatchOperationSummary, RenderJob } from "./types";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, init);
@@ -17,6 +17,7 @@ export async function getSample(): Promise<{ document: LayoutDocument; prompt: s
 export async function getProviders(): Promise<{
   visionLayout: { active: string; configured: string; available: string[]; openAiReady: boolean; model: string | null };
   imageGeneration: { activeDefault: string; available: string[]; openAiReady: boolean; model: string | null };
+  layoutPatch: { active: string; configured: string; available: string[]; openAiReady: boolean; model: string | null };
 }> {
   return request("/api/providers");
 }
@@ -39,9 +40,11 @@ export async function patchLayout(document: LayoutDocument, ops: PatchOperation[
 
 export async function planLayoutPatch(input: { document: LayoutDocument; instruction: string; selectedObjectIds?: string[] }): Promise<{
   provider: string;
+  model?: string;
   instruction: string;
   ops: PatchOperation[];
   document: LayoutDocument;
+  opSummaries: PatchOperationSummary[];
   warnings: string[];
   confidence: number;
 }> {
